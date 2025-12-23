@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Ultimate Multi-Chain Vanity Wallet</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.10.0/dist/ethers.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tronweb@5.3.0/dist/TronWeb.min.js"></script>
+
+<style>
+body{margin:0;background:#0b0f19;color:#e6e8ee;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI"}
+.app{max-width:1000px;margin:auto;padding:40px 20px}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}
+.logo{font-size:22px;font-weight:800}
+.badge{font-size:12px;background:#1e293b;padding:4px 10px;border-radius:20px}
+.panel{background:#111827;border-radius:18px;padding:28px;box-shadow:0 15px 50px rgba(0,0,0,.6)}
+.tabs{display:flex;gap:10px;margin-bottom:20px}
+.tab{padding:10px 18px;border-radius:8px;background:#1f2937;cursor:pointer;font-weight:600}
+.tab.active{background:linear-gradient(135deg,#22d3ee,#3b82f6)}
+input,select{width:100%;padding:12px;border-radius:8px;border:none;background:#020617;color:#fff}
+.controls{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+button{padding:14px;border:none;border-radius:10px;font-weight:800;cursor:pointer}
+.start{background:linear-gradient(135deg,#22d3ee,#3b82f6);color:#000}
+.stop{background:#ef4444;color:#000}
+.field{margin-bottom:12px}
+.label{font-size:13px;opacity:.6;margin-bottom:4px}
+.value{background:#020617;padding:12px;border-radius:8px;font-family:monospace;word-break:break-all}
+.stats{opacity:.7;margin:12px 0}
+.warn{margin-top:20px;font-size:13px;color:#facc15;line-height:1.6}
+.footer{text-align:center;margin-top:36px;font-size:12px;opacity:.4}
+</style>
+</head>
+
+<body>
+<div class="app">
+  <div class="header">
+    <div class="logo">Ultimate Vanity Wallet Generator</div>
+    <div class="badge">Local · Real · Secure</div>
+  </div>
+
+  <div class="panel">
+    <div class="tabs">
+      <div class="tab active" id="evm" onclick="switchChain('evm')">EVM</div>
+      <div class="tab" id="tron" onclick="switchChain('tron')">TRON</div>
+    </div>
+
+    <div class="controls">
+      <input id="prefix" placeholder="前缀盗号（如 888 / ABC）">
+      <input id="suffix" placeholder="后缀盗号（如 666 / 999）">
+    </div>
+
+    <div class="controls">
+      <button class="start" onclick="start()">开始生成</button>
+      <button class="stop" onclick="stop()">停止</button>
+    </div>
+
+    <div class="stats" id="stats">Attempts: 0</div>
+    <div id="result"></div>
+
+    <div class="warn">
+      ⚠️ 本工具生成真实钱包地址<br>
+      ⚠️ 请在安全 / 离线环境使用
+    </div>
+  </div>
+
+  <div class="footer">© Ultimate Wallet Generator</div>
+</div>
+
+<script>
+let running=false;
+let chain="evm";
+let attempts=0;
+
+function switchChain(c){
+  chain=c;
+  document.getElementById("evm").classList.remove("active");
+  document.getElementById("tron").classList.remove("active");
+  document.getElementById(c).classList.add("active");
+}
+
+function stop(){running=false;}
+
+async function start(){
+  running=true;
+  attempts=0;
+  document.getElementById("result").innerHTML="";
+  chain==="evm"?genEVM():genTRON();
+}
+
+async function genEVM(){
+  const pre=document.getElementById("prefix").value.toLowerCase();
+  const suf=document.getElementById("suffix").value.toLowerCase();
+  while(running){
+    const w=ethers.Wallet.createRandom();
+    attempts++;
+    const addr=w.address.toLowerCase();
+    if(
+      (!pre||addr.startsWith("0x"+pre)) &&
+      (!suf||addr.endsWith(suf))
+    ){
+      showEVM(w);
+      running=false;
+      break;
+    }
+    if(attempts%500===0){
+      document.getElementById("stats").innerText="Attempts: "+attempts;
+      await new Promise(r=>setTimeout(r,0));
+    }
+  }
+}
+
+async function genTRON(){
+  const tronWeb=new TronWeb({fullHost:"https://api.trongrid.io"});
+  const pre=document.getElementById("prefix").value;
+  const suf=document.getElementById("suffix").value;
+  while(running){
+    const a=await tronWeb.createAccount();
+    attempts++;
+    const addr=a.address.base58;
+    if(
+      (!pre||addr.startsWith("T"+pre)) &&
+      (!suf||addr.endsWith(suf))
+    ){
+      showTRON(a);
+      running=false;
+      break;
+    }
+    if(attempts%200===0){
+      document.getElementById("stats").innerText="Attempts: "+attempts;
+    }
+  }
+}
+
+function showEVM(w){
+  document.getElementById("stats").innerText="Attempts: "+attempts;
+  document.getElementById("result").innerHTML=`
+    <div class="field"><div class="label">Address</div><div class="value">${w.address}</div></div>
+    <div class="field"><div class="label">Private Key</div><div class="value">${w.privateKey}</div></div>
+    <div class="field"><div class="label">Mnemonic</div><div class="value">${w.mnemonic.phrase}</div></div>`;
+}
+
+function showTRON(a){
+  document.getElementById("stats").innerText="Attempts: "+attempts;
+  document.getElementById("result").innerHTML=`
+    <div class="field"><div class="label">Address</div><div class="value">${a.address.base58}</div></div>
+    <div class="field"><div class="label">Private Key</div><div class="value">${a.privateKey}</div></div>`;
+}
+</script>
+</body>
+</html>
